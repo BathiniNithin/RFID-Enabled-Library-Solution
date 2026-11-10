@@ -1,0 +1,79 @@
+{
+  "summary": "Tested TutorConnect backend (11 tests, 7 passed) and frontend smoke. Found 2 critical backend bugs blocking the core flow: GET /api/tutors returns 500 (homepage tutor listing broken) and get_current_user never sets user['id'] which will break booking/checkout/tutor-profile endpoints for authenticated calls.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/tutors and GET /api/tutors?subject=Math",
+        "issue": "Returns 500 ResponseValidationError. Route excludes _id via projection ({'_id': 0}) but the TutorProfile response_model REQUIRES the field 'id'. Documents stored in DB have no 'id' field, only '_id'. Result: response validation fails with 'Field required' for 'id'. Frontend /tutors page shows 'No tutors found' as a consequence.",
+        "priority": "CRITICAL",
+        "fix_hint": "Either remove response_model=List[TutorProfile], or include _id and convert it: tutors = await db.tutors.find(query).to_list(100); for t in tutors: t['id'] = str(t.pop('_id'))."
+      },
+      {
+        "endpoint": "get_current_user helper (affects POST /api/tutors/profile, POST /api/bookings, GET /api/bookings for student/tutor, POST /api/payments/checkout/session)",
+        "issue": "Helper sets user['_id'] = str(user['_id']) but never sets user['id']. Downstream endpoints reference user['id'] (e.g., booking_data with student_id=user['id'], tutor profile creation, payment user authorization). Any authenticated write will crash with KeyError. Note: GET /auth/me may also expose raw stringified _id instead of an id field for the frontend.",
+        "priority": "CRITICAL",
+        "fix_hint": "In get_current_user, add: user['id'] = str(user['_id']); del user['_id']."
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/tutors/{tutor_id}",
+        "issue": "Parameter naming is confusing — it actually expects user_id (queries by 'user_id'), not the tutor profile id. Could not test cleanly since GET /api/tutors fails first."
+      },
+      {
+        "endpoint": "POST /api/auth/register & login",
+        "issue": "Cookies set with secure=False even though the app is served over HTTPS via the public preview URL. samesite='lax' + secure=False works but is not ideal for production."
+      },
+      {
+        "endpoint": "PATCH /api/bookings/{booking_id}/status",
+        "issue": "Uses {'id': booking_id} for find/update, but bookings are inserted without an 'id' field (only Mongo _id). This endpoint will never find a booking. Untested live but verified by code review."
+      },
+      {
+        "endpoint": "CORS",
+        "issue": "Backend CORS allow_origins is locked to FRONTEND_URL, but .env CORS_ORIGINS='*' is ignored. allow_credentials=True with explicit single origin is fine — just inconsistent with the env var."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Browse tutors page",
+        "issue": "Page renders but shows 'No tutors found' because GET /api/tutors returns 500. This blocks the entire booking funnel (cannot navigate to TutorDetail -> booking -> payment).",
+        "affected_selectors": ["tutors-page"]
+      },
+      {
+        "flow": "Auth bootstrap",
+        "issue": "GET /api/auth/me called on every page load returns 401 for anonymous users (expected) — but errors are logged to console as 'Failed to load resource: 401'. Consider swallowing 401 in AuthContext to avoid console noise."
+      }
+    ],
+    "design_issues": [
+      {"screen": "Homepage", "issues": ["Renders cleanly with good hero, categories, testimonials, FAQ. data-testids present on key elements."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "FIX GET /api/tutors response: drop response_model=List[TutorProfile] OR map _id -> id before returning.",
+    "FIX get_current_user: set user['id'] = str(user['_id']) and remove _id. This unblocks tutor profile create, booking create, GET bookings filtered by user, and payment checkout session.",
+    "FIX PATCH /api/bookings/{booking_id}/status to query by _id (ObjectId) instead of 'id' field, OR persist an 'id' field on booking creation.",
+    "After fixes, re-run /app/backend/tests/backend_test.py and re-test Tutors -> TutorDetail -> Booking -> Payment Checkout end-to-end."
+  ],
+  "critical_code_review_comments": [
+    "MongoDB documents are inserted without an explicit 'id' field but multiple routes query by 'id' (PATCH booking status, find booking in payments) — this will silently fail.",
+    "Inconsistent ID handling: tutors are queried by user_id externally while bookings reference tutor_id == user_id; document this convention or unify.",
+    "server.py is 750 lines — should be split into auth/tutor/booking/payment modules for maintainability.",
+    "No input validation on PATCH booking status — any string accepted as status. Should be Enum.",
+    "Stripe webhook endpoint accepts unsigned bodies in error path; webhook signature verification depends on emergentintegrations lib — confirm it raises on invalid sig."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "64% (7/11)", "frontend": "70% (home renders, tutors list broken)"},
+  "test_credentials": "Read from /app/memory/test_credentials.md — student@test.com/student123, tutor@test.com/tutor123, admin@tutorconnect.com/admin123. Login verified working.",
+  "seed_data_creation": "None created; existing seed data used (Sarah Johnson tutor, 3 testimonials).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file at /app/backend/tests/backend_test.py covers auth, tutors, testimonials, bookings, payments scaffold. After main agent fixes the two critical bugs (GET /api/tutors 500 and user['id'] missing), re-run pytest then proceed to playwright E2E for Login -> Tutors -> TutorDetail -> Booking -> PaymentCheckout (will redirect to Stripe; test polling on /payment/success route by mocking session_id).",
+  "rca_of_the_issue": "Root cause #1 (GET /api/tutors 500): route uses Pydantic response_model TutorProfile which requires 'id', but query projection excludes _id ({'_id':0}) and no 'id' field exists on the document — validation fails. Reproduction: curl https://tutorconnect-25.preview.emergentagent.com/api/tutors -> 500. Mitigation: project _id and rename to id, OR drop response_model. Root cause #2 (user['id'] missing): get_current_user mutates _id to string but never aliases to 'id'; downstream code assumes 'id'. Mitigation: add user['id'] = str(user.pop('_id')) in get_current_user."
+}

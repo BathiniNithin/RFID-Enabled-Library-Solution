@@ -1,0 +1,55 @@
+import os
+import uuid
+
+import pytest
+import requests
+
+
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
+
+
+@pytest.fixture(scope="module")
+def api():
+    session = requests.Session()
+    session.headers.update({"Content-Type": "application/json"})
+    return session
+
+
+def test_seed_and_dashboard(api):
+    seed = api.post(f"{BASE_URL}/api/seed")
+    assert seed.status_code == 200
+    dashboard = api.get(f"{BASE_URL}/api/dashboard")
+    assert dashboard.status_code == 200
+    data = dashboard.json()
+    assert data["books"] >= 10
+    assert data["copies"] >= 15
+    assert data["members"] >= 5
+    assert data["available_copies"] >= 15
+
+
+def test_book_create_search_and_cleanup(api):
+    isbn = f"TEST-{uuid.uuid4().hex[:12]}"
+    payload = {"title": "TEST_Quiet Shelf", "isbn": isbn, "author": "TEST_Author", "category": "Testing"}
+    created = api.post(f"{BASE_URL}/api/books", json=payload)
+    assert created.status_code == 200
+    book = created.json()
+    assert book["title"] == payload["title"]
+    listed = api.get(f"{BASE_URL}/api/books", params={"q": "TEST_Quiet Shelf"})
+    assert listed.status_code == 200
+    assert any(row["id"] == book["id"] for row in listed.json())
+
+
+def test_issue_and_return_loan(api):
+    members = api.get(f"{BASE_URL}/api/members").json()
+    copies = api.get(f"{BASE_URL}/api/book_copies").json()
+    member = next(row for row in members if row["member_code"].startswith("MEM-"))
+    copy = next(row for row in copies if row["status"] == "Available")
+    issued = api.post(f"{BASE_URL}/api/loans", json={"member_id": member["id"], "copy_id": copy["id"], "due_date": "2030-01-01"})
+    assert issued.status_code == 200
+    loan = issued.json()
+    assert loan["status"] == "Active"
+    returned = api.post(f"{BASE_URL}/api/loans/{loan['id']}/return")
+    assert returned.status_code == 200
+    assert returned.json()["status"] == "Returned"
+    refreshed = api.get(f"{BASE_URL}/api/book_copies").json()
+    assert next(row for row in refreshed if row["id"] == copy["id"])["status"] == "Available"

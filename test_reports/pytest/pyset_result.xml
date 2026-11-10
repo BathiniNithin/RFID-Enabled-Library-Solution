@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="11" time="2.797" timestamp="2026-05-23T17:40:40.867103+00:00" hostname="agent-env-137924fb-0cfc-491e-9c26-2ca9fa7b6b99"><testcase classname="backend.tests.backend_test.TestAuth" name="test_login_success" time="0.429" /><testcase classname="backend.tests.backend_test.TestAuth" name="test_login_invalid" time="0.371" /><testcase classname="backend.tests.backend_test.TestAuth" name="test_me_unauthenticated" time="0.150" /><testcase classname="backend.tests.backend_test.TestAuth" name="test_me_authenticated" time="0.441" /><testcase classname="backend.tests.backend_test.TestTutors" name="test_list_tutors" time="0.104"><failure message="assert 500 == 200&#10; +  where 500 = &lt;Response [500]&gt;.status_code">backend/tests/backend_test.py:55: in test_list_tutors
+    assert r.status_code == 200
+E   assert 500 == 200
+E    +  where 500 = &lt;Response [500]&gt;.status_code</failure></testcase><testcase classname="backend.tests.backend_test.TestTutors" name="test_filter_tutors_by_subject" time="0.145"><failure message="assert 500 == 200&#10; +  where 500 = &lt;Response [500]&gt;.status_code">backend/tests/backend_test.py:63: in test_filter_tutors_by_subject
+    assert r.status_code == 200
+E   assert 500 == 200
+E    +  where 500 = &lt;Response [500]&gt;.status_code</failure></testcase><testcase classname="backend.tests.backend_test.TestTutors" name="test_get_tutor_detail" time="0.108"><failure message="requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)">/root/.venv/lib/python3.11/site-packages/requests/models.py:1116: in json
+    return complexjson.loads(self.text, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/decoder.py:355: in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+E   json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+backend/tests/backend_test.py:71: in test_get_tutor_detail
+    tutors = r.json()
+             ^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/models.py:1120: in json
+    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+E   requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)</failure></testcase><testcase classname="backend.tests.backend_test.TestTestimonials" name="test_list_testimonials" time="0.107" /><testcase classname="backend.tests.backend_test.TestBookingFlow" name="test_create_booking_and_checkout" time="0.146"><failure message="requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)">/root/.venv/lib/python3.11/site-packages/requests/models.py:1116: in json
+    return complexjson.loads(self.text, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/decoder.py:355: in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+E   json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+backend/tests/backend_test.py:94: in test_create_booking_and_checkout
+    tutors = r.json()
+             ^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/models.py:1120: in json
+    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+E   requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)</failure></testcase><testcase classname="backend.tests.backend_test.TestBookingFlow" name="test_booking_requires_auth" time="0.103" /><testcase classname="backend.tests.backend_test.TestBookingFlow" name="test_tutor_cannot_create_booking" time="0.385" /></testsuite></testsuites>
